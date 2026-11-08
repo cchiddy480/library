@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Library</title>
+  <meta name="description" content="A personal index of sites worth learning from.">
+  <meta name="theme-color" content="#0b1013">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%230b1013%27/%3E%3Crect x=%274%27 y=%274%27 width=%278%27 height=%278%27 rx=%271%27 fill=%27%2370d9b4%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./data.js" defer></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="topline" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="wrap">
+      <div class="bar">
+        <div class="brand"><span class="mark" aria-hidden="true"></span><span class="wordmark">LIBRARY</span><span class="count" id="count"></span></div>
+        <div class="bar-right">
+          <time class="clock" id="clock"></time>
+          <button type="button" class="action" id="add-btn">+ ADD</button>
+        </div>
+      </div>
+      <h1 class="sr-only">Library — personal knowledge index</h1>
+      <div class="search-band">
+        <div class="search-row">
+          <div class="search-wrap">
+            <svg class="glass" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input type="search" id="q" aria-label="Search titles, tags or URLs" placeholder="Search titles, tags or URLs" autocomplete="off" spellcheck="false">
+            <kbd aria-hidden="true">/</kbd>
+          </div>
+          <select id="cat" aria-label="Filter by category"></select>
+        </div>
+        <div class="chips" id="chips" role="group" aria-label="Categories"></div>
+        <p class="hint" aria-hidden="true">↑ ↓ move · ↵ open · / search</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="firstrun" id="firstrun" hidden>Nothing pinned yet. Hit PIN on anything you keep coming back to.</p>
+    <div id="banner" class="banner" role="alert" hidden>
+      <span>Persistence unavailable — changes won't survive a reload. Open via GitHub Pages.</span>
+      <button type="button" class="action" id="banner-x" aria-label="Dismiss warning">DISMISS</button>
+    </div>
+    <section id="pinned" aria-labelledby="h-pinned" hidden>
+      <h2 class="label" id="h-pinned"><span>PINNED</span><i></i><b id="n-pinned"></b></h2>
+      <ol class="list" id="pinned-list"></ol>
+    </section>
+    <section id="recent" aria-labelledby="h-recent" hidden>
+      <h2 class="label" id="h-recent"><span>RECENTLY OPENED</span><i></i></h2>
+      <details>
+        <summary id="recent-sum"></summary>
+        <ol class="list" id="recent-list"></ol>
+      </details>
+    </section>
+    <section id="all" aria-labelledby="h-all">
+      <h2 class="label" id="h-all"><span>ALL ENTRIES</span><i></i><b id="n-all"></b></h2>
+      <ol class="list" id="list"></ol>
+      <div class="empty" id="empty" hidden>
+        <p id="empty-msg"></p>
+        <button type="button" class="action" id="clear-btn">CLEAR</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap site-footer">
+    <span id="foot-text"></span>
+    <button type="button" class="action" id="export-btn">EXPORT JSON</button>
+    <span class="foot-count" id="foot-count"></span>
+  </footer>
+
+  <dialog id="dlg" aria-labelledby="dlg-h">
+    <form id="add-form" novalidate>
+      <h2 id="dlg-h" class="label"><span>ADD ENTRY</span><i></i></h2>
+      <label>Title <input name="title" required autocomplete="off"></label>
+      <label>URL <input name="url" required inputmode="url" autocomplete="off" placeholder="https://"></label>
+      <label>Category <input name="category" list="cat-list" autocomplete="off"></label>
+      <datalist id="cat-list"></datalist>
+      <label>Description <textarea name="description" rows="3"></textarea></label>
+      <label>Tags (comma separated) <input name="tags" autocomplete="off"></label>
+      <p class="err" id="add-err" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="submit" class="action solid">SAVE ENTRY</button>
+        <button type="button" class="action" id="add-cancel">CANCEL</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="sr" id="status" role="status" aria-live="polite"></div>
+</body>
+</html>
