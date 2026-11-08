@@ -8,6 +8,11 @@
   <meta name="description" content="A personal index of sites worth learning from.">
   <meta name="theme-color" content="#0b1013">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%230b1013%27/%3E%3Crect x=%274%27 y=%274%27 width=%278%27 height=%278%27 rx=%271%27 fill=%27%2370d9b4%27/%3E%3C/svg%3E">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Library">
   <link rel="stylesheet" href="./styles.css">
   <script src="./data.js" defer></script>
   <script src="./app.js" defer></script>
@@ -87,6 +92,16 @@
         <button type="button" class="action" id="add-cancel">CANCEL</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="export-dlg" aria-labelledby="export-h">
+    <h2 id="export-h" class="label"><span>EXPORT JSON</span><i></i></h2>
+    <textarea id="export-ta" class="export-ta" rows="14" readonly spellcheck="false" aria-label="Exported JSON"></textarea>
+    <p class="help">Select all, then copy. Paste this into data.js to keep it.</p>
+    <div class="dlg-actions">
+      <button type="button" class="action solid" id="export-copy">COPY</button>
+      <button type="button" class="action" id="export-close">CLOSE</button>
+    </div>
   </dialog>
 
   <div class="sr" id="status" role="status" aria-live="polite"></div>

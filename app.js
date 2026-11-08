@@ -85,7 +85,7 @@
       ? el('a', 'title', e.title, { href: e.url, target: '_blank', rel: 'noopener noreferrer', 'data-act': 'open', 'data-id': e.id, 'data-k': list + ':' + e.id + ':t' })
       : el('span', 'title', e.title));
     main.appendChild(line);
-    main.appendChild(el('p', 'desc', e.description || ''));
+    main.appendChild(el('p', 'desc', e.description || '', { title: e.description || '' }));
     if (note && !ed) main.appendChild(el('p', 'note-saved', note));
     if (ed) {
       var box = el('div', 'note-box');
@@ -247,16 +247,40 @@
     });
   }
 
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function reveal(n) {
+    var r = n.getBoundingClientRect();
+    if (r.top >= 0 && r.bottom <= window.innerHeight) return;
+    n.scrollIntoView({ block: 'center', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+  }
+
   function exportJson() {
     var text = JSON.stringify(all(), null, 2), good = false;
     try { good = Array.isArray(JSON.parse(text)); } catch (e) { good = false; }
     if (!good) { say('Export failed: data did not validate.'); return; }
-    copyText(text).then(function (ok) { say(ok ? 'JSON copied (' + all().length + ' entries).' : 'Could not copy JSON.'); });
+    copyText(text).then(function (ok) {
+      if (ok) { say('JSON copied (' + all().length + ' entries).'); return; }
+      var ta = $('export-ta'); ta.value = text;
+      $('export-dlg').showModal(); ta.focus(); ta.select();
+      say('Clipboard unavailable. Copy the JSON from the dialog.');
+    });
   }
+  var xdlg = $('export-dlg');
+  $('export-copy').addEventListener('click', function () {
+    var b = this, ta = $('export-ta');
+    copyText(ta.value).then(function (ok) {
+      ta.focus(); ta.select();
+      say(ok ? 'JSON copied.' : 'Could not copy JSON. Select all and copy by hand.');
+      if (!ok) return;
+      b.textContent = 'COPIED'; setTimeout(function () { b.textContent = 'COPY'; }, 1200);
+    });
+  });
+  $('export-close').addEventListener('click', function () { xdlg.close(); });
+  xdlg.addEventListener('close', function () { $('export-btn').focus(); });
 
   function clearFilters() {
     state.q = ''; state.cat = ''; $('q').value = '';
-    render(); $('q').focus();
+    render(); $('q').focus(); reveal($('q'));
   }
 
   function setCat(c) { state.cat = c; render(); say(shownCount() + ' entries.'); }
@@ -304,7 +328,7 @@
   document.addEventListener('keydown', function (ev) {
     var t = ev.target, dlg = $('dlg');
     if (ev.defaultPrevented || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-    if (dlg.open) return; // native dialog handles Escape and focus trap
+    if (dlg.open || xdlg.open) return; // native dialog handles Escape and focus trap
 
     if (ev.key === 'Escape') {
       if (t.tagName === 'SELECT') return;
@@ -313,7 +337,7 @@
       else if (t && t.blur) t.blur();
       return;
     }
-    if (ev.key === '/' && !isTyping(t)) { ev.preventDefault(); $('q').focus(); $('q').select(); return; }
+    if (ev.key === '/' && !isTyping(t)) { ev.preventDefault(); $('q').focus(); $('q').select(); reveal($('q')); return; }
 
     var list = titles();
     if (t === $('q') && ev.key === 'ArrowDown') {
