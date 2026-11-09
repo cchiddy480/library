@@ -2,8 +2,11 @@
 
 A personal index of learn-something sites. Static, no build, no dependencies.
 
+Live: https://cchiddy480.github.io/ — repo `cchiddy480/cchiddy480.github.io` (user site, so it serves at the
+account root). Push to `main` = deploy.
+
 Files: `index.html`, `styles.css`, `app.js`, `data.js`. All paths are relative, so it works
-from `file://` and from a GitHub Pages project path (`https://user.github.io/<repo>/`).
+from `file://` as well as the Pages root.
 Scripts are classic (no ES modules) because `file://` blocks them.
 
 ## Run
