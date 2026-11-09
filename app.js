@@ -75,7 +75,10 @@
     var pinned = pins.indexOf(e.id) !== -1, note = notes[e.id], ok = safeUrl(e.url);
     var ed = state.editing && state.editing.id === e.id && state.editing.list === list ? state.editing : null;
     var li = el('li'), art = el('article', 'entry');
-    art.appendChild(el('div', 'idx', pad(i + 1)));
+    art.appendChild(el('span', 'marker', null, { 'aria-hidden': 'true' }));
+    var idx = el('div', 'idx', pad(i + 1));
+    if (pinned) idx.prepend(el('span', 'pin-sq', null, { 'aria-hidden': 'true' }));
+    art.appendChild(idx);
 
     var main = el('div'), line = el('div');
     if (pinned || note) {
@@ -185,6 +188,33 @@
     clearTimeout(statusTimer); statusTimer = setTimeout(function () { s.textContent = msg; }, 30);
   }
 
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  var toastEl, toastTimer;
+  function dismissToast(t) {
+    if (!t || t !== toastEl) return;
+    toastEl = null; clearTimeout(toastTimer);
+    t.classList.remove('in'); t.classList.add('out');
+    setTimeout(function () { t.remove(); }, 120);
+  }
+  function toast(url) {
+    if (toastEl) { clearTimeout(toastTimer); toastEl.remove(); }
+    var t = toastEl = el('div', 'toast', null, { 'aria-hidden': 'true' });
+    t.append(el('i'), el('b', null, 'COPIED'), el('span', null, url));
+    t.addEventListener('click', function () { dismissToast(t); });
+    document.body.appendChild(t);
+    t.getBoundingClientRect(); // commit the start state so the enter transition runs
+    t.classList.add('in');
+    toastTimer = setTimeout(function () { dismissToast(t); }, 1800);
+  }
+
+  // Close a dialog with a 120ms fade; Escape routes here too. Focus is never delayed on open.
+  function closeDlg(d) {
+    if (!d.open || d.classList.contains('closing')) return;
+    d.classList.add('closing');
+    setTimeout(function () { d.classList.remove('closing'); d.close(); }, 120);
+  }
+
   function copyText(text) {
     function fallback() {
       var prev = document.activeElement, ta = el('textarea', 'sr', null, { 'aria-hidden': 'true', tabindex: '-1' });
@@ -214,27 +244,63 @@
     if (i === -1) pins.push(id); else pins.splice(i, 1);
     persist(KEYS.pins, pins);
     render(list + ':' + id + ':pin');
+    if (i === -1) flashMarker(id);
+  }
+
+  // One-shot signal on the ALL ENTRIES row's marker. Visible-at-rest rows dip and return; others show and retract.
+  function flashMarker(id) {
+    var b = document.querySelector('[data-k="a:' + id + ':pin"]'), m = b && b.closest('.entry').querySelector('.marker');
+    if (!m || reduceMotion.matches || !m.animate) return;
+    var lit = m.parentNode.matches(':hover, :focus-within'), on = 'scaleY(1)';
+    m.animate(lit ? [{ opacity: 1 }, { opacity: .35 }, { opacity: 1 }] : [{ opacity: 1, transform: on }, { opacity: .35, transform: on }],
+      { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' });
   }
 
   function toggleNote(id, list) {
     var open = state.editing && state.editing.id === id && state.editing.list === list;
-    state.editing = open ? null : { id: id, list: list, draft: notes[id] || '' };
-    render(open ? list + ':' + id + ':note' : list + ':' + id + ':ta');
+    if (open) { cancelNote(); return; }
+    state.editing = { id: id, list: list, draft: notes[id] || '' };
+    render(list + ':' + id + ':ta');
+    var box = document.querySelector('.note-box');
+    if (box && !reduceMotion.matches) expand(box);
+  }
+
+  // Height 0 -> measured, then hand the box back to normal flow so the textarea stays responsive.
+  function expand(box) {
+    var h = box.offsetHeight; if (!h) return; // not measurable: leave it at final state
+    var mt = getComputedStyle(box).marginTop;
+    var tr = 'height var(--motion-reveal) var(--ease-out), opacity var(--motion-reveal) var(--ease-out), margin-top var(--motion-reveal) var(--ease-out)';
+    box.style.cssText = 'overflow:hidden;height:0;opacity:0;margin-top:0';
+    box.getBoundingClientRect();
+    box.style.transition = tr; box.style.height = h + 'px'; box.style.opacity = '1'; box.style.marginTop = mt;
+    setTimeout(function () { box.style.cssText = ''; }, 240);
+  }
+
+  // Exit is faster than entrance; the node is removed (by render) once it reaches 0.
+  var collapsing = false;
+  function collapse(done) {
+    var box = document.querySelector('.note-box');
+    if (collapsing) return;
+    if (!box || reduceMotion.matches || !box.offsetHeight) { done(); return; }
+    collapsing = true;
+    box.style.cssText = 'overflow:hidden;height:' + box.offsetHeight + 'px';
+    box.getBoundingClientRect();
+    box.style.transition = 'height 140ms var(--ease-out), opacity 140ms var(--ease-out), margin-top 140ms var(--ease-out)';
+    box.style.height = '0'; box.style.opacity = '0'; box.style.marginTop = '0';
+    setTimeout(function () { collapsing = false; done(); }, 140);
   }
 
   function saveNote() {
     var ed = state.editing; if (!ed) return;
     if (ed.draft.trim()) notes[ed.id] = ed.draft; else delete notes[ed.id];
     persist(KEYS.notes, notes);
-    state.editing = null;
-    render(ed.list + ':' + ed.id + ':note');
     say(notes[ed.id] ? 'Note saved.' : 'Note removed.');
+    collapse(function () { state.editing = null; render(ed.list + ':' + ed.id + ':note'); });
   }
 
   function cancelNote() {
     var ed = state.editing; if (!ed) return;
-    state.editing = null;
-    render(ed.list + ':' + ed.id + ':note');
+    collapse(function () { state.editing = null; render(ed.list + ':' + ed.id + ':note'); });
   }
 
   function copyLink(b, id) {
@@ -242,12 +308,11 @@
     copyText(e.url).then(function (ok) {
       say(ok ? 'Link copied.' : 'Could not copy link.');
       if (!ok) return;
-      b.textContent = 'COPIED';
-      setTimeout(function () { if (b.isConnected) b.textContent = 'COPY'; }, 1200);
+      b.textContent = 'COPIED'; toast(e.url);
+      setTimeout(function () { if (b.isConnected) b.textContent = 'COPY'; }, 1400);
     });
   }
 
-  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   function reveal(n) {
     var r = n.getBoundingClientRect();
     if (r.top >= 0 && r.bottom <= window.innerHeight) return;
@@ -275,7 +340,8 @@
       b.textContent = 'COPIED'; setTimeout(function () { b.textContent = 'COPY'; }, 1200);
     });
   });
-  $('export-close').addEventListener('click', function () { xdlg.close(); });
+  $('export-close').addEventListener('click', function () { closeDlg(xdlg); });
+  xdlg.addEventListener('cancel', function (ev) { ev.preventDefault(); closeDlg(xdlg); });
   xdlg.addEventListener('close', function () { $('export-btn').focus(); });
 
   function clearFilters() {
@@ -358,7 +424,8 @@
     form.reset(); $('add-err').textContent = '';
     dlg.showModal(); form.elements.title.focus();
   });
-  $('add-cancel').addEventListener('click', function () { dlg.close(); });
+  $('add-cancel').addEventListener('click', function () { closeDlg(dlg); });
+  dlg.addEventListener('cancel', function (ev) { ev.preventDefault(); closeDlg(dlg); });
   dlg.addEventListener('close', function () { $('add-btn').focus(); });
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
@@ -375,7 +442,7 @@
     });
     persist(KEYS.local, local);
     render();
-    dlg.close();
+    closeDlg(dlg);
     say('Entry added locally.');
   });
 
