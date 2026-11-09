@@ -31,3 +31,8 @@ If storage is blocked, the app keeps working read-only and shows a banner.
 ## Pages caching
 
 After pushing, the Pages CDN can serve stale `app.js`/`data.js` for a few minutes; hard-reload if changes don't appear.
+
+
+## Secret
+
+Type `index` with focus outside any field.

@@ -141,7 +141,7 @@
 
     $('count').replaceChildren(everything.length + ' entries', el('span', 'cats', ' · ' + names.length + ' categories'));
     $('foot-count').textContent = everything.length + ' entries';
-    $('foot-text').textContent = 'Stored in this browser only · nothing syncs' + (local.length ? ' · ' + local.length + ' local' : '');
+    $('foot-text').textContent = 'Browser storage only · no sync' + (local.length ? ' · ' + local.length + ' local' : '');
 
     // category select + chips (kept in sync)
     var opts = [el('option', null, 'All categories', { value: '' })];
@@ -168,7 +168,7 @@
     var none = !shown.length;
     $('empty').hidden = !none;
     $('clear-btn').hidden = !everything.length;
-    $('empty-msg').textContent = everything.length ? 'Nothing matches that. Clear search or filters.' : 'No entries yet. Add one, or put it in data.js.';
+    $('empty-msg').textContent = everything.length ? 'Nothing here. Clear search or filters.' : 'No entries yet. Add one, or edit data.js.';
 
     if (keep) {
       var t = document.querySelector('[data-k="' + keep + '"]');
@@ -189,6 +189,17 @@
   }
 
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var EASE = 'cubic-bezier(.2,.8,.2,1)';
+
+  // 12x12 check; pathLength=1 lets CSS draw it with a plain 0..1 dashoffset.
+  function tickIcon() {
+    var NS = 'http://www.w3.org/2000/svg', s = document.createElementNS(NS, 'svg'), p = document.createElementNS(NS, 'path');
+    s.setAttribute('viewBox', '0 0 12 12'); s.setAttribute('width', '12'); s.setAttribute('height', '12');
+    s.setAttribute('aria-hidden', 'true'); s.setAttribute('focusable', 'false');
+    p.setAttribute('d', 'M2 6.5l3 3 5-6'); p.setAttribute('pathLength', '1');
+    s.appendChild(p);
+    return s;
+  }
 
   var toastEl, toastTimer;
   function dismissToast(t) {
@@ -200,7 +211,7 @@
   function toast(url) {
     if (toastEl) { clearTimeout(toastTimer); toastEl.remove(); }
     var t = toastEl = el('div', 'toast', null, { 'aria-hidden': 'true' });
-    t.append(el('i'), el('b', null, 'COPIED'), el('span', null, url));
+    t.append(tickIcon(), el('b', null, 'COPIED'), el('span', null, url));
     t.addEventListener('click', function () { dismissToast(t); });
     document.body.appendChild(t);
     t.getBoundingClientRect(); // commit the start state so the enter transition runs
@@ -244,16 +255,14 @@
     if (i === -1) pins.push(id); else pins.splice(i, 1);
     persist(KEYS.pins, pins);
     render(list + ':' + id + ':pin');
-    if (i === -1) flashMarker(id);
+    if (i === -1) settleIdx(list, id);
   }
 
-  // One-shot signal on the ALL ENTRIES row's marker. Visible-at-rest rows dip and return; others show and retract.
-  function flashMarker(id) {
-    var b = document.querySelector('[data-k="a:' + id + ':pin"]'), m = b && b.closest('.entry').querySelector('.marker');
-    if (!m || reduceMotion.matches || !m.animate) return;
-    var lit = m.parentNode.matches(':hover, :focus-within'), on = 'scaleY(1)';
-    m.animate(lit ? [{ opacity: 1 }, { opacity: .35 }, { opacity: 1 }] : [{ opacity: 1, transform: on }, { opacity: .35, transform: on }],
-      { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  // Pin acknowledgement: the row's index number settles through --text and back (unpin: nothing).
+  function settleIdx(list, id) {
+    var b = document.querySelector('[data-k="' + list + ':' + id + ':pin"]'), n = b && b.closest('.entry').querySelector('.idx');
+    if (!n || reduceMotion.matches || !n.animate) return;
+    n.animate([{ color: 'var(--accent)' }, { color: 'var(--text)' }, { color: 'var(--accent)' }], { duration: 180, easing: EASE }); // the pinned row is focused, so its number rests mint
   }
 
   function toggleNote(id, list) {
@@ -418,6 +427,50 @@
     }
   });
 
+  /* ---------- personality ---------- */
+  // The filing mark: a mint line travels the ALL ENTRIES rule. It is the only thing that animates, and it never blocks anything.
+  var sweep = document.querySelector('#h-all .sweep'), fx = [];
+  function fit() { // sweep is 28% of the rule, starting at the rule's left edge
+    var rule = $('h-all').querySelector('i');
+    sweep.style.left = rule.offsetLeft + 'px'; sweep.style.width = rule.offsetWidth * 0.28 + 'px';
+  }
+  function endFx() {
+    fx.forEach(function (a) { a.cancel(); }); fx = [];
+    document.removeEventListener('keydown', endFx, true); document.removeEventListener('pointerdown', endFx, true);
+  }
+  function arrive() { // once per document load, called from init only (never from render)
+    if (reduceMotion.matches || !sweep.animate) return;
+    fit();
+    fx = [
+      sweep.animate([{ transform: 'translateX(-110%)' }, { transform: 'translateX(360%)' }], { duration: 420, easing: EASE, fill: 'forwards' }),
+      sweep.animate([{ opacity: 0 }, { opacity: .9, offset: .1 }, { opacity: .9, offset: 420 / 580 }, { opacity: 0 }], { duration: 580 })
+    ];
+    var rows = Array.prototype.filter.call(document.querySelectorAll('.list .idx'), function (n) { return n.offsetParent !== null; }).slice(0, 5);
+    rows.forEach(function (n, i) {
+      fx.push(n.animate([{ color: '#6f838a' }, { color: 'var(--text)' }, { color: '#6f838a' }], { duration: 90, delay: i * 60 }));
+    });
+    fx[1].onfinish = endFx; // releases the fill and the listeners
+    document.addEventListener('keydown', endFx, true); document.addEventListener('pointerdown', endFx, true);
+  }
+
+  // Easter egg: type "index" outside any field.
+  var WORD = 'index', at = 0, t0 = 0;
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Shift') return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || isTyping(ev.target) || dlg.open || xdlg.open) { at = 0; return; }
+    var k = ev.key.toLowerCase();
+    if (at && ev.timeStamp - t0 > 2000) at = 0;
+    if (k !== WORD[at]) at = 0;
+    if (k === WORD[at]) { if (!at) t0 = ev.timeStamp; at++; }
+    if (at < WORD.length) return;
+    at = 0; say('Index intact.');
+    if (reduceMotion.matches || !sweep.animate) return;
+    endFx(); fit();
+    sweep.animate([
+      { transform: 'translateX(-110%)', opacity: .9, easing: EASE }, { transform: 'translateX(250%)', opacity: .9, offset: .6 }, { transform: 'translateX(250%)', opacity: .9 }
+    ], { duration: 400 }); // 240ms draw, held to 400ms, then the rule is as it was
+  });
+
   /* ---------- add-entry dialog ---------- */
   var dlg = $('dlg'), form = $('add-form');
   $('add-btn').addEventListener('click', function () {
@@ -454,4 +507,5 @@
   tick(); setInterval(tick, 30000);
 
   render();
+  arrive();
 })();

@@ -91,6 +91,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--text-muted); }
 
 /* section labels */
 .label { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-6) 0 var(--space-1); font: 600 11px/16px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); }
+.label { position: relative; }
+.sweep { position: absolute; top: calc(50% - .5px); left: 0; width: 28%; height: 1px; opacity: 0; pointer-events: none; background: linear-gradient(90deg, transparent, var(--accent), transparent); } /* app.js fits it to the rule and animates it */
 .label i { flex: 1; height: 1px; background: var(--line); opacity: .55; }
 .label b { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-muted); }
 
@@ -104,6 +106,9 @@ input:hover, select:hover, textarea:hover { border-color: var(--text-muted); }
   padding: var(--space-4) var(--space-4); /* vertical per brief; inline gutter keeps hover bar off the text */ margin-inline: calc(-1 * var(--space-4));
   position: relative; transition: background-color var(--motion-hover) var(--ease-out);
 }
+/* underrule: drawn left to right over the li's bottom hairline (li owns the border, so -1px) */
+.entry::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; pointer-events: none; background: linear-gradient(90deg, var(--accent) 0%, rgba(112,217,180,.55) 45%, rgba(112,217,180,.12) 78%, transparent 96%); transform: scaleX(0); transform-origin: left center; transition: transform 160ms var(--ease-out); }
+.entry:hover::after, .entry:focus-within::after { transform: scaleX(1); }
 .entry:hover, .entry:focus-within { background: var(--surface); }
 /* ledger cursor: drawn down on enter, retracts upward on exit */
 .marker { position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); transform: scaleY(0); transform-origin: bottom center; transition: transform var(--motion-hover) var(--ease-out); pointer-events: none; }
@@ -200,7 +205,10 @@ dialog input, dialog textarea { display: block; width: 100%; margin-top: var(--s
 .toast { position: fixed; left: max(var(--space-4), calc((100vw - 1080px) / 2 + var(--space-5))); bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); z-index: 30; display: flex; align-items: center; gap: var(--space-2); padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(0,0,0,.45); font: 11px/16px var(--font-mono); cursor: pointer; opacity: 0; transform: translateY(6px); transition: opacity 120ms linear; }
 .toast.in { opacity: 1; transform: none; transition: opacity var(--motion-state) var(--ease-out), transform var(--motion-state) var(--ease-out); }
 .toast.out { opacity: 0; transform: none; }
-.toast i { flex: none; width: 5px; height: 5px; background: var(--accent); }
+.toast svg { flex: none; }
+.toast path { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 1; } /* pathLength=1: dash 1 = the whole tick */
+.toast.in path { animation: tick-draw 180ms var(--ease-out) 60ms backwards; }
+@keyframes tick-draw { from { stroke-dashoffset: 1; } }
 .toast b { flex: none; font-weight: 600; letter-spacing: .06em; color: var(--text); }
 .toast span { max-width: min(60vw, 420px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
 
@@ -209,5 +217,8 @@ dialog input, dialog textarea { display: block; width: 100%; margin-top: var(--s
   .entry .marker { transform: scaleY(1); opacity: 0; transition: opacity var(--motion-hover) linear; }
   .entry:hover .marker, .entry:focus-within .marker { opacity: 1; }
   .toast { transform: none; }
+  .toast.in path { animation: none; }
+  .entry::after { transform: none; opacity: 0; transition: opacity 160ms linear; }
+  .entry:hover::after, .entry:focus-within::after { transform: none; opacity: 1; }
   dialog[open]:not(.closing) { animation-name: fade-in; }
 }
